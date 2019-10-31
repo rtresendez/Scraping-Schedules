@@ -1,0 +1,106 @@
+---
+title: "Data Scraping"
+author: "Reece Resendez"
+date: "October 29, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+To start off the project we will create a function that is designed to suppress and add all of the libraries we will need. To make this process simple we will load all installed libraries for usage.
+```{r, results=FALSE, message=FALSE}
+
+include <- function(library_name){
+  if( !(library_name %in% installed.packages()) )
+    install.packages(library_name) 
+  library(library_name, character.only=TRUE)
+}
+include("rvest")
+include("tidyr")
+include("tidyverse")
+
+```
+
+Here we want to store the URL which contains all the information that we will be scraping. We also want to call a function on that URL which will break the data into a workable list.
+```{r}
+
+url <- "http://ems.csuchico.edu/APSS/schedule/spr2020/CSCI.shtml"
+
+cs_html <- read_html(url)
+
+```
+
+This is the section where we want to hard code all the different nodes that will be stored into vectors for us to eventually add to a tibble. Note that when the data is numerical we call a function to convert the data to integers as opposed to text
+```{r}
+
+subjects <-cs_html %>% html_nodes("td.subj") %>% html_text()
+
+catNums <- cs_html %>% html_nodes("td.cat_num") %>% html_text() %>% as.integer()
+
+sectNums <- cs_html %>% html_nodes("td.sect") %>% html_text() %>% as.integer()
+  
+courseTitles <- cs_html %>% html_nodes("td.title") %>% html_text()
+  
+Instructors <- cs_html %>% html_nodes("td.Instructor") %>% html_text()
+  
+enrollments <- cs_html %>% html_nodes("td.enrtot") %>% html_text() %>% as.integer()
+
+```
+
+Here is where we create our tibble and simply assign the data from the previous section into new names for each column in our tibble
+```{r}
+
+
+courses <- tibble(subject = subjects,
+                  courseNum = catNums,
+                  sectionNum = sectNums,
+                  title = courseTitles,
+                  instructor = Instructors,
+                  enrollment = enrollments)
+
+print(courses)
+
+
+```
+
+Finally we want to simplify this process so we will create a simple function that will perform the previous actions for us and store them into a tibble for us. This is done but first creating a variable that stores all the nodes under a certain category for us. In this case the name of the node is .classrow. We then use that group of nodes to fill in the rest. The last step is to simply return our finished tibble.
+```{r}
+
+read_class_schedule <- function(url){
+  html <- read_html(url)
+  class <- html %>% html_nodes(".classrow")
+  
+subject <-class %>% html_nodes("td.subj") %>% html_text()
+
+catNum <- class %>% html_nodes("td.cat_num") %>% html_text()
+
+sectNum <- class %>% html_nodes("td.sect") %>% html_text() %>% as.integer()
+  
+courseTitle <- class %>% html_nodes("td.title") %>% html_text()
+  
+Instructor <- class %>% html_nodes("td.Instructor") %>% html_text()
+  
+enrollment <- class %>% html_nodes("td.enrtot") %>% html_text() %>% as.integer()
+
+return(tibble(subject,catNum,
+              sectNum,courseTitle,
+              Instructor, enrollment))
+
+}
+
+url1 <- "http://ems.csuchico.edu/APSS/schedule/spr2020/MATH.shtml"
+
+url2 <- "http://ems.csuchico.edu/APSS/schedule/spr2019/MATH.shtml"
+
+url3 <- "http://ems.csuchico.edu/APSS/schedule/spr2019/CSCI.shtml"
+
+CS20 <- read_class_schedule(url)
+
+MA20 <- read_class_schedule(url1)
+
+MA19 <- read_class_schedule(url2)
+
+CS19 <- read_class_schedule(url3)
+```
